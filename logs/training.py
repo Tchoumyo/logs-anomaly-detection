@@ -10,9 +10,9 @@ from preprocessing import LogPreprocessor
 class AnomalyDetector:
     def __init__(self):
         self.isolation_forest = IsolationForest(
-            n_jobs=-1, verbose=1
+            n_jobs=-1, verbose=1, contamination=0.5
         )
-        self.one_svm = OneClassSVM(verbose=1)
+        self.one_svm = OneClassSVM(verbose=1, nu=0.5)
 
     def train_models(self, X:np.ndarray):
         """
@@ -65,6 +65,16 @@ class AnomalyDetector:
         plt.tight_layout() # Jumeller les deux graphes
         plt.show()
         
+        # Calcul du pourcentage de point considéré comme outliers dans les modèles
+        prediction = self.predict(X)
+        
+        outliers_isolation_forest_ration = np.mean(prediction["isolation_forest"]==-1)
+        
+        outliers_one_svm_ration = np.mean(prediction["one_svm"]==-1)
+        
+        print(f"ratio d'outliers pour l'isolation forest: {outliers_isolation_forest_ration:.2%}")
+        print(f"ratio d'outliers pour one class svm: {outliers_one_svm_ration:.2%}")
+        
 if __name__=="__main__":
     df = pd.read_csv(Constant.LOGS_DATASET_FILE_NAME)
     
@@ -84,7 +94,7 @@ if __name__=="__main__":
     print("Evaluation du modèle")
     detector.evaluate_models(x_test)
     
-
+    #prediction = detector.predict(x_test)
 
 
 
