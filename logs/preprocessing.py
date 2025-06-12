@@ -28,20 +28,22 @@ class LogPreprocessor:
         df = df.merge(user_stats, how='left', on='user_ip')
 
         df["response_time_category"] = pd.cut(
-            df['response_time'], bins=[-1,100,200,300],
+            df['response_time'], bins=[-1,200,400,5000],
             labels=['fast','normal','slow']
         )
 
         df["is_potential_anomalous"] = (
-            (df['response_time'] > 200) | ((df['status_code'].str.startswith("5")) | (df['status_code'].str.startswith("4")))
+            (df['response_time'] > 400) | ((df['status_code'].str.startswith("5")) | (df['status_code'].str.startswith("4")))
         ).astype(int)
+        
+        df["is_normal"] = (df['status_code'].astype(int)).apply(lambda x: 1 if 200 <= x <= 204 else 0)
 
         return df
     
 
     def build_preprocessor(self,df):
         numeric_features = ["response_time","hour_of_day","day_of_week","month","error_count","unique_error_type","avg_response_time","max_response_time"]
-        categorical_features = ["is_weekend","method","end_point","is_potential_anomalous","response_time_category"]
+        categorical_features = ["is_weekend","method","end_point","is_potential_anomalous","response_time_category","is_normal"]
 
         numeric_transformer = Pipeline(steps=[('scaler', StandardScaler())])
         categorical_transformer = Pipeline(steps=[('onehot', OneHotEncoder(handle_unknown='ignore'))])
@@ -63,7 +65,7 @@ class LogPreprocessor:
 
         X_preprocessed = self.preprocessor.fit_transform(X)
 
-        return X_preprocessed, X
+        return X_preprocessed, X, df_parsed['status_code']
     
 
     # Séparation de nos données en données d'entrainement et de test
@@ -81,7 +83,7 @@ class LogPreprocessor:
 if __name__=="__main__" :
     df  = pd.read_csv('data/logs_dataset.csv')
     LogPreprocessor = LogPreprocessor()
-    X_preprocessed,X = LogPreprocessor.fit_transform(df)
+    X_preprocessed,X, status_code = LogPreprocessor.fit_transform(df)
     print('operation réussi')
     print('X_preprocessed dimension', X_preprocessed.shape)
     print('X dimension', X.shape)
