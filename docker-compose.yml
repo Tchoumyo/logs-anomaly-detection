@@ -1,0 +1,76 @@
+
+services:
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: 'unless-stopped'
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - monitoring
+    command: redis-server --appendonly yes
+
+  traefik: # jouera le rôle d'intermediaire entre les users et les services, permet la redirection des routes, fournir un nom de domaine, s'integre nativement avec docker
+    image: traefik:v2.10
+    container_name: traefik
+    restart: 'unless-stopped'
+    ports:
+      - "80:80" 
+      - "443:443"
+      - "8080:8080" # dashboard traefik
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - monitoring
+    command: 
+      - "--api.dashboard=true" # Activer le dashboard
+      - "--providers.docker=true" # Permet à traefik de connaitre nos conteneurs docker
+      - "--providers.docker.exposebydefault=false"
+      - "--entrypoints.web.address=:80" # Définir le port pour les entrées web
+      - "--entrypoints.websecure.address=:443"
+      - "--log.level=DEBUG" # Definir le niveau de logs à afficher DEBUG--> affiche tout
+
+  fastapi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: anomaly_detector
+
+    networks:
+      - monitoring
+    depends_on:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.fastapi.rule=Host(`api.localhost`)" # Creation d'un sous domaine local
+      - "traefik.http.routers.fastapi.entrypoints=web"
+      - "traefik.http.services.fastapi.loadbalancer.server.port=8000"
+  
+  dozzle: # permet d'inspecter les logs dans notre conteneur
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    restart: 'unless-stopped'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - monitoring
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dozzle.rule=Host(`dozzle.localhost`)" # Creation d'un sous domaine local
+      - "traefik.http.routers.dozzle.entrypoints=web"
+      - "traefik.http.routers.dozzle.loadbalancer.server.port=8080"
+    environment:
+      DOZZLE_ENABLE_ACTIONS: "true" # activer les fonctionnalités de par défaut inactif de dozzle
+      
+
+
+
+networks:
+  monitoring:
+    driver: "bridge"
+volumes:
+  redis_data:
+  

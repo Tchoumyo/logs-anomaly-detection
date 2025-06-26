@@ -6,7 +6,7 @@ from sklearn.ensemble import IsolationForest
 from sklearn.svm import OneClassSVM
 from sklearn.preprocessing import StandardScaler
 from sklearn.manifold import TSNE
-from constant import Constant
+from logs.constant import Constant
 
 class AnomalyComparator:
     def __init__(self):
@@ -24,9 +24,16 @@ class AnomalyComparator:
         isolation_forest: IsolationForest = joblib.load(Constant.ISOLATION_FOREST_MODEL_FILE_NAME)
         one_svm: OneClassSVM = joblib.load(Constant.ONE_CLASS_SVM_MODEL_FILE_NAME)
 
+        # return {
+        #     "anomaly_iforest": isolation_forest.predict(X),
+        #     "anomaly_svm": one_svm.predict(X)
+        # }
+
         return {
             "anomaly_iforest": isolation_forest.predict(X),
-            "anomaly_svm": one_svm.predict(X)
+            "isolation_forest_score": isolation_forest.decision_function(X),
+            "anomaly_svm": one_svm.predict(X),
+            "one_svm_score": one_svm.decision_function(X),
         }
 
     def visualize(self, X: np.ndarray, predictions: dict[str, np.ndarray]):
